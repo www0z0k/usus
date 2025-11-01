@@ -58,9 +58,6 @@
     .footer-note{opacity:.7;font-size:12px;margin-top:8px}
 
     /* Deck editor */
-    .tabs{display:flex;gap:8px;margin-bottom:8px}
-    .tab{padding:8px 12px;border-radius:999px;border:1px solid #273046;background:#0b0e14;color:var(--muted);cursor:pointer}
-    .tab.active{background:var(--acc);color:#0b0e14;border-color:transparent}
     .deck-list{display:grid;grid-template-columns:1.2fr 2fr auto;gap:8px;align-items:center}
     .deck-list .hdr{font-size:12px;color:var(--muted)}
     .ghost-btn{background:transparent;border:1px dashed #2b3550;color:var(--fg)}
@@ -102,12 +99,11 @@
             </select>
           </div>
           <div>
-            <label>Выбор деки</label>
-            <select id="deckMode">
-              <option value="mix" selected>Микс 50/50 (по умолчанию)</option>
-              <option value="high">Только Высокая</option>
-              <option value="short">Только Короткая</option>
-            </select>
+            <label>Включить деки</label>
+            <div class="row">
+              <label><input type="checkbox" id="enableHigh" checked /> Высокая</label>
+              <label><input type="checkbox" id="enableShort" checked /> Короткая</label>
+            </div>
           </div>
         </div>
         <div class="sep"></div>
@@ -121,7 +117,6 @@
         <div class="row">
           <button class="btn primary" id="startGame">🚀 Начать матч</button>
           <button class="btn" id="howTo">❓ Правила</button>
-          <button class="btn" id="manageDecks">📚 Деки слов</button>
           <button class="btn" id="historyBtn">🕘 История</button>
         </div>
       </div>
@@ -193,35 +188,7 @@
       </div>
     </section>
 
-    <!-- DECKS MODAL (improved editor) -->
-    <section id="screen-decks" class="card" style="display:none">
-      <h2>Деки слов (локально)</h2>
-      <div class="tabs">
-        <div class="tab active" data-deck="high">Высокая/научная</div>
-        <div class="tab" data-deck="short">Короткая/предметная</div>
-      </div>
-      <div id="deckEditor">
-        <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:8px">
-          <button class="btn" id="loadDefaultHigh">📥 long.json → Высокая</button>
-          <button class="btn" id="loadDefaultShort">📥 short.json → Короткая</button>
-          <button class="btn" id="mergeDefaults">🔀 Слить long+short в активную</button>
-          <span class="pill">Файлы ищутся по путям <code>./decks/long.json</code> и <code>./decks/short.json</code> (тот же origin)</span>
-        </div>
-        <div class="deck-list" id="deckHeader" style="position:sticky;top:0;background:linear-gradient(180deg,var(--card),var(--card2));z-index:1;padding-top:8px;padding-bottom:8px">
-          <div class="hdr">Слово</div>
-          <div class="hdr">Хинт</div>
-          <div class="hdr">Действия</div>
-        </div>
-        <div id="deckRows" class="deck-list" style="margin-top:6px;max-height:52vh;overflow:auto"></div>
-        <div class="row" style="margin-top:10px">
-          <button class="btn ghost-btn" id="addRow">➕ Добавить слово</button>
-          <button class="btn good" id="saveDeck">💾 Сохранить</button>
-          <button class="btn" id="exportDeck">📤 Экспорт JSON</button>
-          <button class="btn" id="importDeck">📥 Импорт JSON</button>
-          <button class="btn" id="closeDecks">⬅️ Вернуться</button>
-        </div>
-      </div>
-    </section>
+
 
     <!-- HISTORY -->
     <section id="screen-history" class="card" style="display:none">
@@ -298,9 +265,17 @@
       "шкет":"Мальчишка, мелкий парнишка (разг.)."
     };
 
-    // Initialize default decks if empty — включаем ОБЕ деки по дефолту
-    if(Object.keys(LS.getHigh()).length===0) LS.saveHigh(SAMPLE_HIGH);
-    if(Object.keys(LS.getShort()).length===0) LS.saveShort(SAMPLE_SHORT);
+    // Initialize default decks if empty — load from files on startup
+    async function initDecks() {
+      if (Object.keys(LS.getHigh()).length === 0) {
+        const high = await fetchDeck('./decks/long.json');
+        LS.saveHigh(high || SAMPLE_HIGH);
+      }
+      if (Object.keys(LS.getShort()).length === 0) {
+        const short = await fetchDeck('./decks/short.json');
+        LS.saveShort(short || SAMPLE_SHORT);
+      }
+    }
 
     // ---------- State ----------
     const state = {
@@ -316,9 +291,9 @@
         target:+$('#targetScore').value||30,
         roundTime:+$('#roundTime').value||60,
         skipPenalty:+$('#skipPenalty').value||0,
-        deckMode:$('#deckMode').value // по умолчанию mix (обе деки)
+        enabledDecks:{high:$('#enableHigh').checked, short:$('#enableShort').checked}
       };
-      const pool = buildWordPool(settings.deckMode);
+      const pool = buildWordPool(settings.enabledDecks);
       state.game = {
         id:uid(), createdAt:Date.now(),
         teams, order:[...teams.keys()], curTeamIdx:0,
@@ -328,20 +303,15 @@
       };
     }
 
-    function buildWordPool(mode){
+    function buildWordPool(enabledDecks){
       const high = LS.getHigh();
       const short = LS.getShort();
-      const entriesHigh = Object.entries(high);
-      const entriesShort = Object.entries(short);
       const mix = [];
-      if(mode==='high'){mix.push(...entriesHigh)}
-      else if(mode==='short'){mix.push(...entriesShort)}
-      else { // mix 50/50 (обе деки по умолчанию)
-        const a=[...entriesHigh], b=[...entriesShort];
-        while(a.length||b.length){
-          if(a.length && (Math.random()<.5 || !b.length)) mix.push(a.splice(Math.floor(Math.random()*a.length),1)[0]);
-          if(b.length && (Math.random()<.5 || !a.length)) mix.push(b.splice(Math.floor(Math.random()*b.length),1)[0]);
-        }
+      if(enabledDecks.high){
+        mix.push(...Object.entries(high));
+      }
+      if(enabledDecks.short){
+        mix.push(...Object.entries(short));
       }
       // shuffle
       for(let i=mix.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[mix[i],mix[j]]=[mix[j],mix[i]]}
@@ -547,7 +517,6 @@
       $('#screen-round').style.display = which==='round'?'block':'none';
       $('#screen-score').style.display = which==='score'?'block':'none';
       $('#screen-end').style.display   = which==='end'?'block':'none';
-      $('#screen-decks').style.display = which==='decks'?'block':'none';
       $('#screen-history').style.display = which==='history'?'block':'none';
     }
 
@@ -575,70 +544,6 @@
       alert(howToText);
     });
 
-    // ----- DECK EDITOR (user-friendly) -----
-    let currentDeckType = 'high';
-
-    function loadDeck(type){ return type==='high'? LS.getHigh() : LS.getShort(); }
-    function saveDeck(type,obj){ return type==='high'? LS.saveHigh(obj) : LS.saveShort(obj); }
-
-    function renderDeck(type){
-      currentDeckType = type;
-      $$('.tab').forEach(t=>t.classList.toggle('active', t.dataset.deck===type));
-      const rowsBox = $('#deckRows');
-      rowsBox.innerHTML='';
-      const obj = loadDeck(type);
-      Object.entries(obj).forEach(([w,h])=> addRow(w,h));
-      if(Object.keys(obj).length===0){ addRow('',''); }
-    }
-
-    function addRow(word='',hint=''){
-      const rowsBox = $('#deckRows');
-      const row = document.createElement('div'); row.className='deck-list card'; row.style.padding='12px';
-      const w = document.createElement('input'); w.type='text'; w.placeholder='слово'; w.value=word; w.autocomplete='off'; w.inputMode='text';
-      const h = document.createElement('input'); h.type='text'; h.placeholder='хинт'; h.value=hint; h.autocomplete='off'; h.inputMode='text';
-      const act = document.createElement('div'); act.style.display='flex'; act.style.justifyContent='flex-end';
-      const del = document.createElement('button'); del.className='btn bad'; del.textContent='Удалить'; del.style.minWidth='96px';
-      del.addEventListener('click', ()=> row.remove());
-      act.appendChild(del);
-      // Desktop grid cells
-      row.appendChild(w); row.appendChild(h); row.appendChild(act);
-      rowsBox.appendChild(row);
-    }
-
-    // FIXED: removed stray closing brace/extra call
-    $('#manageDecks').addEventListener('click', ()=>{ renderDeck('high'); showScreen('decks'); fitDeckInputsForMobile(); });
-
-    $('#addRow').addEventListener('click', ()=> addRow('',''));
-
-    $('#saveDeck').addEventListener('click', ()=>{
-      const rows = Array.from($('#deckRows').children);
-      const obj = {};
-      for(const r of rows){
-        const [wEl,hEl] = r.querySelectorAll('input');
-        const w = (wEl.value||'').trim();
-        const h = (hEl.value||'').trim();
-        if(!w) continue; obj[w]=h||'';
-      }
-      saveDeck(currentDeckType,obj);
-      toast('Дека сохранена');
-    });
-
-    $('#exportDeck').addEventListener('click', ()=>{
-      const obj = loadDeck(currentDeckType);
-      const blob = new Blob([JSON.stringify(obj,null,2)], {type:'application/json'});
-      const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`${currentDeckType}-deck.json`; a.click(); URL.revokeObjectURL(a.href);
-    });
-
-    $('#importDeck').addEventListener('click', ()=>{
-      const json = prompt('Вставьте JSON вида {"слово":"хинт"}:');
-      if(!json) return;
-      try{ const obj=JSON.parse(json); saveDeck(currentDeckType,obj); renderDeck(currentDeckType); toast('Импорт выполнен'); }
-      catch{ alert('Ошибка: не удалось распарсить JSON'); }
-    });
-
-    $('#closeDecks').addEventListener('click', ()=> showScreen('setup'));
-    $$('.tab').forEach(t=> t.addEventListener('click', ()=> renderDeck(t.dataset.deck)) );
-
     // Round controls
     $('#btnHint').addEventListener('click', ()=>{
       const r=state.game.round; if(!r.current) return;
@@ -661,7 +566,7 @@
     $('#btnRematch').addEventListener('click', ()=>{
       const g=state.game;
       g.teams.forEach(t=>t.score=0);
-      g.pool = buildWordPool(g.settings.deckMode);
+      g.pool = buildWordPool(g.settings.enabledDecks);
       g.used = new Set();
       g.curTeamIdx = 0; g.round.index = 1;
       showScreen('round');
@@ -694,21 +599,14 @@
         // 1) uniqueTeamNames: n unique labels
         const n=4; const names=uniqueTeamNames(n); const set=new Set(names);
         console.assert(set.size===n, 'uniqueTeamNames should produce unique names per roll');
-        // 2) buildWordPool returns array and respects modes
-        const poolMix = buildWordPool('mix');
-        console.assert(Array.isArray(poolMix), 'pool mix should be array');
-        const poolHigh = buildWordPool('high');
-        const poolShort = buildWordPool('short');
+        // 2) buildWordPool returns array and respects enabledDecks
+        const poolBoth = buildWordPool({high:true, short:true});
+        console.assert(Array.isArray(poolBoth), 'pool both should be array');
+        const poolHigh = buildWordPool({high:true, short:false});
+        const poolShort = buildWordPool({high:false, short:true});
         console.assert(Array.isArray(poolHigh)&&Array.isArray(poolShort), 'pools should be arrays');
         // 3) howToText is multiline template literal (no syntax errors)
         console.assert(howToText.includes('Правила'), 'howToText accessible');
-        // 4) manageDecks handler should not throw and must open screen
-        const before = getComputedStyle(document.querySelector('#screen-decks')).display;
-        document.querySelector('#manageDecks').dispatchEvent(new Event('click'));
-        const after = getComputedStyle(document.querySelector('#screen-decks')).display;
-        console.assert(after==='block', 'manageDecks should open decks screen');
-        // revert to setup for normal flow
-        showScreen('setup');
         console.log('✅ Self-tests passed');
       }catch(e){ console.error('❌ Self-tests failed', e); }
     }
@@ -716,34 +614,16 @@
     // Resize: refit word on rotate/or resize
     window.addEventListener('resize', ()=>{ if($('#screen-round').style.display==='block') fitWord(); });
 
-    // Initial
-    renderTeamsSetup();
-    runSelfTests();
-
     // ---- Defaults loader from ./decks/*.json ----
     async function fetchDeck(path){
       try{ const res = await fetch(path, {cache:'no-store'}); if(!res.ok) throw new Error(res.statusText); return await res.json(); }
       catch(e){ toast(`Не удалось загрузить ${path}`); console.error('Default deck load error', e); return null; }
     }
-    async function loadDefaultsTo(type, path){
-      const obj = await fetchDeck(path); if(!obj) return;
-      if(!confirm(`Заменить текущую деку «${type==='high'?'Высокая':'Короткая'}» содержимым из ${path}?`)) return;
-      saveDeck(type,obj); renderDeck(type); toast('Дефолт загружен');
-    }
-    async function mergeDefaultsIntoActive(){
-      const a = await fetchDeck('./decks/long.json');
-      const b = await fetchDeck('./decks/short.json');
-      const merged = {...(a||{}), ...(b||{})};
-      if(Object.keys(merged).length===0){ toast('Оба файла не загрузились'); return; }
-      const cur = currentDeckType; const base = loadDeck(cur);
-      const result = {...merged, ...base}; // base wins
-      saveDeck(cur, result); renderDeck(cur); toast('Слито (defaults → active, без перезаписи существующих)');
-    }
-    $('#loadDefaultHigh').addEventListener('click', ()=> loadDefaultsTo('high','./decks/long.json'));
-    $('#loadDefaultShort').addEventListener('click', ()=> loadDefaultsTo('short','./decks/short.json'));
-    $('#mergeDefaults').addEventListener('click', mergeDefaultsIntoActive);
 
-    function fitDeckInputsForMobile(){ /* responsive via CSS */ }
+    // Initial
+    renderTeamsSetup();
+    runSelfTests();
+    initDecks();
 
   </script>
 </body>
