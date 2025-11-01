@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Узус — Alias‑style (локальная веб‑версия)</title>
+  <title>Узус</title>
   <style>
     :root{
       --bg:#0f1115;--fg:#e6e9ef;--muted:#aab1bd;--acc:#7c9cff;--acc2:#9bdead;--bad:#ff6b6b;--good:#38d996;--warn:#ffb020;--card:#171a21;--card2:#13161c;--br:16px;
@@ -108,7 +108,7 @@
         </div>
         <div class="sep"></div>
         <h2>Команды</h2>
-        <div id="teamsBox" class="grid g2"></div>
+        <div id="teamsBox" class="grid g1"></div>
         <div class="row" style="margin-top:8px">
           <button class="btn" id="rerollNames">🔁 Перегенерировать имена</button>
           <button class="btn" id="swapOrder">🔀 Перемешать порядок</button>
@@ -332,8 +332,8 @@
         const d=document.createElement('div');
         d.className='card';
         d.innerHTML=`<label>Команда ${i+1}</label>
-          <div class="row"><input id="teamName${i}" type="text" value="${names[i]}" />
-          <span class="pill">Автогенерируется • можно править</span></div>`;
+          <input id="teamName${i}" type="text" value="${names[i]}" />
+          <span class="pill">Автогенерируется • можно править</span>`;
         box.appendChild(d);
       }
     }
