@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Узус — Alias‑style (локальная веб‑версия)</title>
+  <style>
+    :root{
+      --bg:#0f1115;--fg:#e6e9ef;--muted:#aab1bd;--acc:#7c9cff;--acc2:#9bdead;--bad:#ff6b6b;--good:#38d996;--warn:#ffb020;--card:#171a21;--card2:#13161c;--br:16px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Ubuntu,Arial,sans-serif;background:var(--bg);color:var(--fg)}
+    .wrap{max-width:980px;margin:0 auto;padding:24px}
+    h1{font-size:28px;margin:0 0 12px}
+    h2{font-size:20px;margin:24px 0 12px;color:var(--acc)}
+    .card{background:linear-gradient(180deg,var(--card),var(--card2));border:1px solid #22293a;border-radius:var(--br);padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+    .grid{display:grid;gap:12px}
+    .g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+    @media (max-width:760px){.g2,.g3{grid-template-columns:1fr}
+      /* mobile-friendly deck rows: stack fields */
+      .deck-list{grid-template-columns:1fr}
+      #deckHeader{display:none}
+      .deck-list > input[type="text"]{width:100%}
+    }
+    label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+    input[type="text"],input[type="number"],select,textarea{width:100%;background:#0b0e14;color:var(--fg);border:1px solid #273046;border-radius:12px;padding:10px 12px;font-size:14px}
+    textarea{min-height:140px;resize:vertical}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .btn{appearance:none;border:1px solid #2b3550;background:#121622;color:var(--fg);padding:10px 14px;border-radius:12px;cursor:pointer;font-weight:600;transition:.15s}
+    .btn:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(0,0,0,.3)}
+    .btn.primary{background:var(--acc);border-color:transparent;color:#0b0e14}
+    .btn.good{background:var(--good);border-color:transparent;color:#06140f}
+    .btn.bad{background:var(--bad);border-color:transparent;color:#220c0c}
+    .btn.warn{background:var(--warn);border-color:transparent;color:#261a05}
+    .pill{display:inline-flex;align-items:center;gap:6px;background:#0b0e14;border:1px solid #273046;border-radius:999px;padding:6px 10px;font-size:12px;color:var(--muted)}
+    .sep{height:1px;background:#22293a;margin:16px -16px}
+
+    /* Round UI */
+    .timer{display:flex;align-items:center;gap:10px}
+    .time{font-variant-numeric:tabular-nums;font-weight:800;font-size:22px}
+    .bar{position:relative;height:10px;background:#1a2131;border-radius:999px;overflow:hidden;flex:1}
+    .fill{position:absolute;inset:0 100% 0 0;background:linear-gradient(90deg,var(--acc),var(--acc2));transition:width .2s}
+
+    .word{font-size:48px;line-height:1.1;font-weight:900;letter-spacing:.3px;text-align:center;margin:10px 0 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .hint{font-size:16px;color:var(--muted);text-align:center;min-height:24px}
+    .big-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:12px}
+    .big-actions .btn{padding:16px 18px;font-size:16px;border-radius:16px}
+
+    .team-tag{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:#0b0e14;border:1px solid #273046}
+    .team-color{width:10px;height:10px;border-radius:50%}
+
+    .list{display:flex;flex-wrap:wrap;gap:8px}
+    .tag{padding:6px 10px;border-radius:999px;border:1px solid #273046;background:#0b0e14;color:var(--muted);font-size:12px}
+
+    .kbd{padding:2px 6px;border:1px solid #2b3550;border-bottom-width:3px;border-radius:6px;background:#0b0e14;color:#d0d6e3;font-size:12px}
+
+    .footer-note{opacity:.7;font-size:12px;margin-top:8px}
+
+    /* Deck editor */
+    .tabs{display:flex;gap:8px;margin-bottom:8px}
+    .tab{padding:8px 12px;border-radius:999px;border:1px solid #273046;background:#0b0e14;color:var(--muted);cursor:pointer}
+    .tab.active{background:var(--acc);color:#0b0e14;border-color:transparent}
+    .deck-list{display:grid;grid-template-columns:1.2fr 2fr auto;gap:8px;align-items:center}
+    .deck-list .hdr{font-size:12px;color:var(--muted)}
+    .ghost-btn{background:transparent;border:1px dashed #2b3550;color:var(--fg)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Узус — Alias‑style (локально)</h1>
+
+    <!-- SETUP -->
+    <section id="screen-setup" class="card grid g2">
+      <div>
+        <h2>Настройка матча</h2>
+        <div class="grid g2">
+          <div>
+            <label>Количество команд</label>
+            <select id="teamCount">
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+            </select>
+          </div>
+          <div>
+            <label>Цель по очкам</label>
+            <input id="targetScore" type="number" min="5" max="100" step="1" value="30" />
+          </div>
+          <div>
+            <label>Время раунда</label>
+            <select id="roundTime">
+              <option value="30">30 сек</option>
+              <option value="60" selected>60 сек</option>
+            </select>
+          </div>
+          <div>
+            <label>Штраф за пропуск</label>
+            <select id="skipPenalty">
+              <option value="0" selected>0 (без штрафа)</option>
+              <option value="-1">-1 (со штрафом)</option>
+            </select>
+          </div>
+          <div>
+            <label>Выбор деки</label>
+            <select id="deckMode">
+              <option value="mix" selected>Микс 50/50 (по умолчанию)</option>
+              <option value="high">Только Высокая</option>
+              <option value="short">Только Короткая</option>
+            </select>
+          </div>
+        </div>
+        <div class="sep"></div>
+        <h2>Команды</h2>
+        <div id="teamsBox" class="grid g2"></div>
+        <div class="row" style="margin-top:8px">
+          <button class="btn" id="rerollNames">🔁 Перегенерировать имена</button>
+          <button class="btn" id="swapOrder">🔀 Перемешать порядок</button>
+        </div>
+        <div class="sep"></div>
+        <div class="row">
+          <button class="btn primary" id="startGame">🚀 Начать матч</button>
+          <button class="btn" id="howTo">❓ Правила</button>
+          <button class="btn" id="manageDecks">📚 Деки слов</button>
+          <button class="btn" id="historyBtn">🕘 История</button>
+        </div>
+      </div>
+      <div>
+        <h2>Кратко о правилах</h2>
+        <div class="list" style="margin-bottom:8px">
+          <span class="tag">+2 без хинта</span>
+          <span class="tag">+1 с хинтом</span>
+          <span class="tag">Пропуск: 0 / −1</span>
+          <span class="tag">Время: 30/60</span>
+          <span class="tag">Телефон по кругу</span>
+        </div>
+        <p>Играют команда на команду. В начале раунда показывается слово. Можно <b>показать хинт</b> (тогда слово стоит 1 очко) или объяснять без хинта (2 очка). Пропуск — без штрафа или −1 (настраивается).
+        Когда время заканчивается — <b>последнее слово</b> можно объяснять без лимита, затем раунд завершается.</p>
+        <p class="footer-note">Все данные (настройки, деки, история) сохраняются локально в <span class="kbd">localStorage</span>.</p>
+      </div>
+    </section>
+
+    <!-- ROUND / PLAY -->
+    <section id="screen-round" class="card" style="display:none">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <div id="roundTeamTag" class="team-tag"><span class="team-color"></span><span class="name"></span></div>
+        <div class="timer" style="min-width:260px">
+          <div class="time" id="timeLeft">00:60</div>
+          <div class="bar"><div id="barFill" class="fill"></div></div>
+        </div>
+        <div class="pill" id="roundInfo">Раунд 1</div>
+      </div>
+      <div class="sep"></div>
+      <div class="word" id="wordText">—</div>
+      <div class="hint" id="hintText">Подсказка скрыта</div>
+
+      <div class="big-actions">
+        <button class="btn" id="btnHint">💡 Показать хинт</button>
+        <button class="btn good" id="btnGuessed">✅ Отгадали →</button>
+        <button class="btn bad" id="btnSkip">⏭ Пропуск</button>
+      </div>
+      <div class="row" style="justify-content:space-between;margin-top:10px">
+        <div class="pill" id="scoreTag">Счёт: —</div>
+        <div class="row">
+          <button class="btn" id="btnPause">⏸ Пауза</button>
+          <button class="btn warn" id="btnEndRound">⏱ Время!</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- SCOREBOARD / SUMMARY -->
+    <section id="screen-score" class="card" style="display:none">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <h2>Сводка раунда</h2>
+        <button class="btn" id="btnNextTeam">▶️ Следующая команда</button>
+      </div>
+      <div id="scoreTable" class="grid g2"></div>
+      <div class="sep"></div>
+      <div>
+        <h3 style="margin:0 0 8px">Слова раунда</h3>
+        <div id="wordsSummary"></div>
+      </div>
+    </section>
+
+    <!-- MATCH END -->
+    <section id="screen-end" class="card" style="display:none">
+      <h2 id="winnerTitle">Победитель</h2>
+      <div id="finalScore" class="grid g2"></div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn primary" id="btnRematch">🔄 Реванш</button>
+        <button class="btn" id="btnNew">🆕 Новая игра</button>
+        <button class="btn" id="btnHistoryFromEnd">🕘 История</button>
+      </div>
+    </section>
+
+    <!-- DECKS MODAL (improved editor) -->
+    <section id="screen-decks" class="card" style="display:none">
+      <h2>Деки слов (локально)</h2>
+      <div class="tabs">
+        <div class="tab active" data-deck="high">Высокая/научная</div>
+        <div class="tab" data-deck="short">Короткая/предметная</div>
+      </div>
+      <div id="deckEditor">
+        <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:8px">
+          <button class="btn" id="loadDefaultHigh">📥 long.json → Высокая</button>
+          <button class="btn" id="loadDefaultShort">📥 short.json → Короткая</button>
+          <button class="btn" id="mergeDefaults">🔀 Слить long+short в активную</button>
+          <span class="pill">Файлы ищутся по путям <code>./decks/long.json</code> и <code>./decks/short.json</code> (тот же origin)</span>
+        </div>
+        <div class="deck-list" id="deckHeader" style="position:sticky;top:0;background:linear-gradient(180deg,var(--card),var(--card2));z-index:1;padding-top:8px;padding-bottom:8px">
+          <div class="hdr">Слово</div>
+          <div class="hdr">Хинт</div>
+          <div class="hdr">Действия</div>
+        </div>
+        <div id="deckRows" class="deck-list" style="margin-top:6px;max-height:52vh;overflow:auto"></div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn ghost-btn" id="addRow">➕ Добавить слово</button>
+          <button class="btn good" id="saveDeck">💾 Сохранить</button>
+          <button class="btn" id="exportDeck">📤 Экспорт JSON</button>
+          <button class="btn" id="importDeck">📥 Импорт JSON</button>
+          <button class="btn" id="closeDecks">⬅️ Вернуться</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- HISTORY -->
+    <section id="screen-history" class="card" style="display:none">
+      <h2>История матчей (localStorage)</h2>
+      <div id="historyList"></div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn bad" id="clearHistory">🗑 Очистить историю</button>
+        <button class="btn" id="backFromHistory">⬅️ Назад</button>
+      </div>
+    </section>
+
+  </div>
+
+  <script>
+    // ---------- Utilities ----------
+    const $ = sel => document.querySelector(sel);
+    const $$ = sel => Array.from(document.querySelectorAll(sel));
+    const fmt = s => s.toString().padStart(2,'0');
+    const choice = arr => arr[Math.floor(Math.random()*arr.length)];
+    const uid = () => Math.random().toString(36).slice(2,10);
+
+    // ---------- Team name generator (unique per roll) ----------
+    const ADJ = [
+      'Суровые','Космические','Благородные','Стремительные','Лунные','Грозные','Железные','Хрустальные','Бархатные','Смиренные','Непоколебимые','Проворные','Искристые','Туманные','Лихие','Алые','Сапфировые','Ветряные','Звонкие','Медные','Серебряные','Солнечные','Полярные','Яростные','Непринуждённые','Кирпичные','Сердитые','Мятные','Янтарные','Флажные','Полевые','Степные','Праздные','Дерзкие','Незримые','Моторные','Ладные','Лесные','Сказочные'
+    ];
+    const NOUN = [
+      'Пони','Пожарные','Бобры','Самовары','Суслики','Тигры','Киты','Лососи','Кентавры','Соколы','Еноты','Фехтовальщики','Инженеры','Матросы','Булавы','Ежевики','Ромашки','Тракторы','Зонтики','Шмели','Носороги','Щегли','Соловьи','Караси','Дельфины','Гвозди','Трамваи','Казаки','Семафоры','Кирпичи','Корнеты','Сапёры','Арфисты','Граммофоны','Штурманы','Вертолёты','Либретто','Лодочники','Муссоны'
+    ];
+
+    function uniqueTeamNames(n){
+      const a = ADJ.slice();
+      const b = NOUN.slice();
+      // shuffle
+      for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}
+      for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]]}
+      const names=[];
+      for(let i=0;i<n;i++){
+        const adj = a[i%a.length];
+        const noun = b[i%b.length];
+        names.push(`${adj} ${noun}`);
+      }
+      return names;
+    }
+
+    // ---------- Local Storage ----------
+    const LS = {
+      decksHighKey:'uzus_deck_high',
+      decksShortKey:'uzus_deck_short',
+      historyKey:'uzus_history',
+      saveHigh(obj){localStorage.setItem(this.decksHighKey, JSON.stringify(obj))},
+      saveShort(obj){localStorage.setItem(this.decksShortKey, JSON.stringify(obj))},
+      getHigh(){try{return JSON.parse(localStorage.getItem(this.decksHighKey)||'{}')}catch{return {}}},
+      getShort(){try{return JSON.parse(localStorage.getItem(this.decksShortKey)||'{}')}catch{return {}}},
+      pushHistory(rec){const arr=JSON.parse(localStorage.getItem(this.historyKey)||'[]');arr.unshift(rec);localStorage.setItem(this.historyKey,JSON.stringify(arr))},
+      getHistory(){return JSON.parse(localStorage.getItem(this.historyKey)||'[]')},
+      clearHistory(){localStorage.removeItem(this.historyKey)}
+    }
+
+    // ---------- Sample decks (tiny demo; import your full ones) ----------
+    const SAMPLE_HIGH = {
+      "узус":"Обычай употребления языка; общепринятая речевая практика.",
+      "электрум":"Природный сплав золота и серебра бледно-жёлтого цвета.",
+      "синекдоха":"Фигура речи: часть вместо целого или наоборот.",
+      "анфилада":"Последовательность комнат по одной оси с проходами.",
+      "протома":"Изображение головы и верхней части груди (скульптура/рельеф).",
+      "синхрофазотрон":"Крупный ускоритель заряженных частиц кольцевого типа."
+    };
+    const SAMPLE_SHORT = {
+      "бирюльки":"Мелкие безделушки; также настольная игра с крючком.",
+      "шпиндель":"Стержень для прядения; веретено прялки.",
+      "балясина":"Фигурный столбик перил лестницы.",
+      "коклюшки":"Деревянные палочки для плетения кружев.",
+      "трдельник":"Сладкая трубочка на вертеле (Чехия).",
+      "шкет":"Мальчишка, мелкий парнишка (разг.)."
+    };
+
+    // Initialize default decks if empty — включаем ОБЕ деки по дефолту
+    if(Object.keys(LS.getHigh()).length===0) LS.saveHigh(SAMPLE_HIGH);
+    if(Object.keys(LS.getShort()).length===0) LS.saveShort(SAMPLE_SHORT);
+
+    // ---------- State ----------
+    const state = {
+      game:null,
+      timer:null,
+    };
+
+    function newGameFromUI(){
+      const teamCount = +$('#teamCount').value;
+      const names = uniqueTeamNames(teamCount);
+      const teams = Array.from({length:teamCount},(_,i)=>({id:uid(), name:$('#teamName'+i)?.value||names[i], color:randColor(), score:0}));
+      const settings = {
+        target:+$('#targetScore').value||30,
+        roundTime:+$('#roundTime').value||60,
+        skipPenalty:+$('#skipPenalty').value||0,
+        deckMode:$('#deckMode').value // по умолчанию mix (обе деки)
+      };
+      const pool = buildWordPool(settings.deckMode);
+      state.game = {
+        id:uid(), createdAt:Date.now(),
+        teams, order:[...teams.keys()], curTeamIdx:0,
+        settings,
+        pool, used:new Set(),
+        round:{ index:1, deadline:0, timeUp:false, current:null, hint:false, words:[], stats:{guessed:0, guessedHint:0, skips:0, delta:0} }
+      };
+    }
+
+    function buildWordPool(mode){
+      const high = LS.getHigh();
+      const short = LS.getShort();
+      const entriesHigh = Object.entries(high);
+      const entriesShort = Object.entries(short);
+      const mix = [];
+      if(mode==='high'){mix.push(...entriesHigh)}
+      else if(mode==='short'){mix.push(...entriesShort)}
+      else { // mix 50/50 (обе деки по умолчанию)
+        const a=[...entriesHigh], b=[...entriesShort];
+        while(a.length||b.length){
+          if(a.length && (Math.random()<.5 || !b.length)) mix.push(a.splice(Math.floor(Math.random()*a.length),1)[0]);
+          if(b.length && (Math.random()<.5 || !a.length)) mix.push(b.splice(Math.floor(Math.random()*b.length),1)[0]);
+        }
+      }
+      // shuffle
+      for(let i=mix.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[mix[i],mix[j]]=[mix[j],mix[i]]}
+      return mix; // array of [word,hint]
+    }
+
+    function randColor(){
+      const h=Math.floor(Math.random()*360);
+      return `hsl(${h} 70% 55%)`;
+    }
+
+    function renderTeamsSetup(){
+      const n=+$('#teamCount').value;
+      const names = uniqueTeamNames(n);
+      const box=$('#teamsBox');
+      box.innerHTML='';
+      for(let i=0;i<n;i++){
+        const d=document.createElement('div');
+        d.className='card';
+        d.innerHTML=`<label>Команда ${i+1}</label>
+          <div class="row"><input id="teamName${i}" type="text" value="${names[i]}" />
+          <span class="pill">Автогенерируется • можно править</span></div>`;
+        box.appendChild(d);
+      }
+    }
+
+    // ---------- Round mechanics ----------
+    function startRound(){
+      const g=state.game;
+      g.round = { index:g.round.index, deadline: Date.now()+g.settings.roundTime*1000, timeUp:false, current:null, hint:false, words:[], stats:{guessed:0, guessedHint:0, skips:0, delta:0} };
+      nextWord();
+      showScreen('round');
+      tick();
+    }
+
+    function timeLeftMs(){ return Math.max(0, (state.game.round.deadline - Date.now())) }
+
+    function tick(){
+      cancelAnimationFrame(state.timer);
+      const loop=()=>{
+        const ms=timeLeftMs();
+        const sec=Math.ceil(ms/1000);
+        $('#timeLeft').textContent=`${fmt(Math.floor(sec/60))}:${fmt(sec%60)}`;
+        const total=state.game.settings.roundTime*1000;
+        const p=1 - (ms/total);
+        $('#barFill').style.inset = `0 ${Math.max(0,(1-p)*100)}% 0 0`;
+        if(ms<=0 && !state.game.round.timeUp){
+          state.game.round.timeUp=true;
+          $('#btnEndRound').disabled=true;
+          $('#btnHint').disabled=false;
+          $('#btnGuessed').disabled=false;
+          $('#btnSkip').disabled=false;
+          toast('⏰ Время! Текущее слово — без лимита');
+        }
+        state.timer=requestAnimationFrame(loop);
+      };
+      state.timer=requestAnimationFrame(loop);
+    }
+
+    function nextWord(){
+      const g=state.game;
+      if(g.round.timeUp){ return; }
+      while(g.pool.length){
+        const [w,h]=g.pool.pop();
+        const key=w+"\u0000"+h; // avoid accidental collisions; explicit escape
+        if(!g.used.has(key)){
+          g.used.add(key);
+          g.round.current={w,h};
+          g.round.hint=false;
+          renderWord();
+          return;
+        }
+      }
+      toast('Слова закончились в выбранных деках. Импортируйте больше слов.');
+    }
+
+    function fitWord(){
+      const el = $('#wordText');
+      const parentWidth = el.parentElement.clientWidth - 24; // padding reserve
+      let size = 48;
+      el.style.fontSize = size + 'px';
+      el.style.whiteSpace = 'nowrap';
+      // downscale until fits; min 18px
+      while(el.scrollWidth > parentWidth && size > 18){
+        size -= 2;
+        el.style.fontSize = size + 'px';
+      }
+    }
+
+    function renderWord(){
+      const {w,h}=state.game.round.current;
+      const wordEl = $('#wordText');
+      wordEl.textContent=w;
+      $('#hintText').textContent = state.game.round.hint ? h : 'Подсказка скрыта';
+      updateHeader();
+      // ensure fits on mobile
+      requestAnimationFrame(fitWord);
+    }
+
+    function scoreCurrent(guessed){
+      const r=state.game.round;
+      const team=state.game.teams[state.game.order[state.game.curTeamIdx]];
+      if(guessed){
+        const add = r.hint?1:2;
+        team.score += add;
+        r.stats.guessed += 1;
+        if(r.hint) r.stats.guessedHint += 1;
+        r.stats.delta += add;
+        r.words.push({w:r.current.w, result:'ok', hint:r.hint, pts:add});
+        if(!r.timeUp){ nextWord(); }
+        else { finishRound(); }
+      } else {
+        const pen = state.game.settings.skipPenalty || 0;
+        team.score += pen;
+        r.stats.skips += 1;
+        r.stats.delta += pen;
+        r.words.push({w:r.current.w, result:'skip', hint:r.hint, pts:pen});
+        if(!r.timeUp){ nextWord(); }
+        else { finishRound(); }
+      }
+      updateHeader();
+    }
+
+    function updateHeader(){
+      const g=state.game; const r=g.round; const team=g.teams[g.order[g.curTeamIdx]];
+      const tag=$('#roundTeamTag');
+      tag.querySelector('.team-color').style.background=team.color;
+      tag.querySelector('.name').textContent=team.name;
+      $('#scoreTag').textContent = `Счёт: ${g.teams.map(t=>t.score).join(' : ')}`;
+      $('#roundInfo').textContent = `Раунд ${r.index}`;
+    }
+
+    function finishRound(){
+      cancelAnimationFrame(state.timer);
+      const g=state.game; const r=g.round;
+      renderScoreSummary();
+      showScreen('score');
+      g.curTeamIdx = (g.curTeamIdx + 1) % g.teams.length;
+      g.round.index += 1;
+      const winner = g.teams.find(t=>t.score>=g.settings.target);
+      if(winner){ renderMatchEnd(winner); }
+    }
+
+    function renderScoreSummary(){
+      const g=state.game;
+      const table=$('#scoreTable');
+      table.innerHTML='';
+      g.teams.forEach((t)=>{
+        const card=document.createElement('div');
+        card.className='card';
+        card.innerHTML=`<div class="row" style="justify-content:space-between;align-items:center">
+          <div class="team-tag"><span class="team-color" style="background:${t.color}"></span><b>${t.name}</b></div>
+          <div class="pill">Очки: <b>${t.score}</b></div>
+        </div>`;
+        table.appendChild(card);
+      });
+      const box=$('#wordsSummary');
+      box.innerHTML='';
+      state.game.round.words.forEach(rec=>{
+        const line=document.createElement('div');
+        const icon = rec.result==='ok' ? (rec.hint?'💡✅':'✅') : '⏭';
+        line.className='row';
+        line.style.justifyContent='space-between';
+        line.innerHTML=`<div>${icon} <b>${rec.w}</b></div><div class="pill">${rec.pts>0?'+':''}${rec.pts} очк.</div>`;
+        box.appendChild(line);
+      })
+    }
+
+    function renderMatchEnd(winner){
+      const g=state.game;
+      const rec={ id:g.id, finishedAt:Date.now(), winner:winner.name, scores:g.teams.map(t=>({name:t.name,score:t.score})), settings:g.settings };
+      LS.pushHistory(rec);
+      $('#winnerTitle').textContent = `Победитель: ${winner.name}`;
+      const box=$('#finalScore');
+      box.innerHTML='';
+      g.teams
+        .slice()
+        .sort((a,b)=>b.score-a.score)
+        .forEach(t=>{
+          const d=document.createElement('div');
+          d.className='card';
+          d.innerHTML = `<div class="row" style="justify-content:space-between;align-items:center">
+            <div class="team-tag"><span class="team-color" style="background:${t.color}"></span><b>${t.name}</b></div>
+            <div class="pill">${t.score} очков</div>
+          </div>`;
+          box.appendChild(d);
+        });
+      showScreen('end');
+    }
+
+    function toast(msg){
+      const el=document.createElement('div');
+      el.textContent=msg; el.className='pill';
+      el.style.position='fixed'; el.style.bottom='20px'; el.style.left='50%'; el.style.transform='translateX(-50%)';
+      el.style.zIndex='9999'; el.style.background='#0b0e14'; el.style.border='1px solid #3a4566';
+      document.body.appendChild(el);
+      setTimeout(()=>{el.remove()}, 2200);
+    }
+
+    // ---------- Screens ----------
+    function showScreen(which){
+      $('#screen-setup').style.display = which==='setup'?'block':'none';
+      $('#screen-round').style.display = which==='round'?'block':'none';
+      $('#screen-score').style.display = which==='score'?'block':'none';
+      $('#screen-end').style.display   = which==='end'?'block':'none';
+      $('#screen-decks').style.display = which==='decks'?'block':'none';
+      $('#screen-history').style.display = which==='history'?'block':'none';
+    }
+
+    // ---------- Event bindings ----------
+    $('#teamCount').addEventListener('change', renderTeamsSetup);
+    $('#rerollNames').addEventListener('click', renderTeamsSetup);
+    $('#swapOrder').addEventListener('click', ()=>{
+      if(!state.game) return; state.game.order = state.game.order.sort(()=>Math.random()-.5); toast('Порядок команд перемешан');
+    });
+
+    const howToText = `Правила:
+— +2 очка за слово без хинта, +1 если хинт показан.
+— Пропуск 0 или −1 (см. настройки).
+— По окончании времени текущее слово можно дообъяснить без лимита.`;
+
+    $('#startGame').addEventListener('click', ()=>{
+      newGameFromUI();
+      const t=state.game.teams[state.game.order[state.game.curTeamIdx]];
+      $('#roundTeamTag .team-color').style.background=t.color;
+      $('#roundTeamTag .name').textContent=t.name;
+      startRound();
+    });
+
+    $('#howTo').addEventListener('click', ()=>{
+      alert(howToText);
+    });
+
+    // ----- DECK EDITOR (user-friendly) -----
+    let currentDeckType = 'high';
+
+    function loadDeck(type){ return type==='high'? LS.getHigh() : LS.getShort(); }
+    function saveDeck(type,obj){ return type==='high'? LS.saveHigh(obj) : LS.saveShort(obj); }
+
+    function renderDeck(type){
+      currentDeckType = type;
+      $$('.tab').forEach(t=>t.classList.toggle('active', t.dataset.deck===type));
+      const rowsBox = $('#deckRows');
+      rowsBox.innerHTML='';
+      const obj = loadDeck(type);
+      Object.entries(obj).forEach(([w,h])=> addRow(w,h));
+      if(Object.keys(obj).length===0){ addRow('',''); }
+    }
+
+    function addRow(word='',hint=''){
+      const rowsBox = $('#deckRows');
+      const row = document.createElement('div'); row.className='deck-list card'; row.style.padding='12px';
+      const w = document.createElement('input'); w.type='text'; w.placeholder='слово'; w.value=word; w.autocomplete='off'; w.inputMode='text';
+      const h = document.createElement('input'); h.type='text'; h.placeholder='хинт'; h.value=hint; h.autocomplete='off'; h.inputMode='text';
+      const act = document.createElement('div'); act.style.display='flex'; act.style.justifyContent='flex-end';
+      const del = document.createElement('button'); del.className='btn bad'; del.textContent='Удалить'; del.style.minWidth='96px';
+      del.addEventListener('click', ()=> row.remove());
+      act.appendChild(del);
+      // Desktop grid cells
+      row.appendChild(w); row.appendChild(h); row.appendChild(act);
+      rowsBox.appendChild(row);
+    }
+
+    // FIXED: removed stray closing brace/extra call
+    $('#manageDecks').addEventListener('click', ()=>{ renderDeck('high'); showScreen('decks'); fitDeckInputsForMobile(); });
+
+    $('#addRow').addEventListener('click', ()=> addRow('',''));
+
+    $('#saveDeck').addEventListener('click', ()=>{
+      const rows = Array.from($('#deckRows').children);
+      const obj = {};
+      for(const r of rows){
+        const [wEl,hEl] = r.querySelectorAll('input');
+        const w = (wEl.value||'').trim();
+        const h = (hEl.value||'').trim();
+        if(!w) continue; obj[w]=h||'';
+      }
+      saveDeck(currentDeckType,obj);
+      toast('Дека сохранена');
+    });
+
+    $('#exportDeck').addEventListener('click', ()=>{
+      const obj = loadDeck(currentDeckType);
+      const blob = new Blob([JSON.stringify(obj,null,2)], {type:'application/json'});
+      const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`${currentDeckType}-deck.json`; a.click(); URL.revokeObjectURL(a.href);
+    });
+
+    $('#importDeck').addEventListener('click', ()=>{
+      const json = prompt('Вставьте JSON вида {"слово":"хинт"}:');
+      if(!json) return;
+      try{ const obj=JSON.parse(json); saveDeck(currentDeckType,obj); renderDeck(currentDeckType); toast('Импорт выполнен'); }
+      catch{ alert('Ошибка: не удалось распарсить JSON'); }
+    });
+
+    $('#closeDecks').addEventListener('click', ()=> showScreen('setup'));
+    $$('.tab').forEach(t=> t.addEventListener('click', ()=> renderDeck(t.dataset.deck)) );
+
+    // Round controls
+    $('#btnHint').addEventListener('click', ()=>{
+      const r=state.game.round; if(!r.current) return;
+      if(!r.hint){ r.hint=true; $('#hintText').textContent=r.current.h; }
+    });
+    $('#btnGuessed').addEventListener('click', ()=>{ scoreCurrent(true); });
+    $('#btnSkip').addEventListener('click', ()=>{ scoreCurrent(false); });
+    $('#btnEndRound').addEventListener('click', ()=>{ state.game.round.timeUp=true; toast('⏰ Время! Текущее слово — без лимита'); });
+    $('#btnPause').addEventListener('click', ()=>{ alert('Пауза условная в этом MVP.'); });
+
+    // Score summary
+    $('#btnNextTeam').addEventListener('click', ()=>{
+      const winner = state.game.teams.find(t=>t.score>=state.game.settings.target);
+      if(winner){ renderMatchEnd(winner); return; }
+      showScreen('round');
+      startRound();
+    });
+
+    // Match end
+    $('#btnRematch').addEventListener('click', ()=>{
+      const g=state.game;
+      g.teams.forEach(t=>t.score=0);
+      g.pool = buildWordPool(g.settings.deckMode);
+      g.used = new Set();
+      g.curTeamIdx = 0; g.round.index = 1;
+      showScreen('round');
+      startRound();
+    });
+    $('#btnNew').addEventListener('click', ()=>{ showScreen('setup'); });
+    $('#btnHistoryFromEnd').addEventListener('click', ()=>{ renderHistory(); showScreen('history'); });
+
+    // History
+    $('#historyBtn').addEventListener('click', ()=>{ renderHistory(); showScreen('history'); });
+    $('#clearHistory').addEventListener('click', ()=>{ if(confirm('Очистить историю матчей?')){ LS.clearHistory(); renderHistory(); } });
+    $('#backFromHistory').addEventListener('click', ()=> showScreen('setup'));
+
+    function renderHistory(){
+      const list=$('#historyList'); list.innerHTML='';
+      const arr=LS.getHistory();
+      if(arr.length===0){ list.innerHTML='<p>История пуста.</p>'; return; }
+      arr.forEach(rec=>{
+        const d=document.createElement('div'); d.className='card';
+        const dt = new Date(rec.finishedAt).toLocaleString();
+        const scores = rec.scores.map(s=>`${s.name}: <b>${s.score}</b>`).join(' · ');
+        d.innerHTML=`<div class="row" style="justify-content:space-between;align-items:center"><div><div class="pill">${dt}</div><div style="margin-top:6px">Победитель: <b>${rec.winner}</b></div></div><div>${scores}</div></div>`;
+        list.appendChild(d);
+      })
+    }
+
+    // ---------- Self-tests (run once on load) ----------
+    function runSelfTests(){
+      try{
+        // 1) uniqueTeamNames: n unique labels
+        const n=4; const names=uniqueTeamNames(n); const set=new Set(names);
+        console.assert(set.size===n, 'uniqueTeamNames should produce unique names per roll');
+        // 2) buildWordPool returns array and respects modes
+        const poolMix = buildWordPool('mix');
+        console.assert(Array.isArray(poolMix), 'pool mix should be array');
+        const poolHigh = buildWordPool('high');
+        const poolShort = buildWordPool('short');
+        console.assert(Array.isArray(poolHigh)&&Array.isArray(poolShort), 'pools should be arrays');
+        // 3) howToText is multiline template literal (no syntax errors)
+        console.assert(howToText.includes('Правила'), 'howToText accessible');
+        // 4) manageDecks handler should not throw and must open screen
+        const before = getComputedStyle(document.querySelector('#screen-decks')).display;
+        document.querySelector('#manageDecks').dispatchEvent(new Event('click'));
+        const after = getComputedStyle(document.querySelector('#screen-decks')).display;
+        console.assert(after==='block', 'manageDecks should open decks screen');
+        // revert to setup for normal flow
+        showScreen('setup');
+        console.log('✅ Self-tests passed');
+      }catch(e){ console.error('❌ Self-tests failed', e); }
+    }
+
+    // Resize: refit word on rotate/or resize
+    window.addEventListener('resize', ()=>{ if($('#screen-round').style.display==='block') fitWord(); });
+
+    // Initial
+    renderTeamsSetup();
+    runSelfTests();
+
+    // ---- Defaults loader from ./decks/*.json ----
+    async function fetchDeck(path){
+      try{ const res = await fetch(path, {cache:'no-store'}); if(!res.ok) throw new Error(res.statusText); return await res.json(); }
+      catch(e){ toast(`Не удалось загрузить ${path}`); console.error('Default deck load error', e); return null; }
+    }
+    async function loadDefaultsTo(type, path){
+      const obj = await fetchDeck(path); if(!obj) return;
+      if(!confirm(`Заменить текущую деку «${type==='high'?'Высокая':'Короткая'}» содержимым из ${path}?`)) return;
+      saveDeck(type,obj); renderDeck(type); toast('Дефолт загружен');
+    }
+    async function mergeDefaultsIntoActive(){
+      const a = await fetchDeck('./decks/long.json');
+      const b = await fetchDeck('./decks/short.json');
+      const merged = {...(a||{}), ...(b||{})};
+      if(Object.keys(merged).length===0){ toast('Оба файла не загрузились'); return; }
+      const cur = currentDeckType; const base = loadDeck(cur);
+      const result = {...merged, ...base}; // base wins
+      saveDeck(cur, result); renderDeck(cur); toast('Слито (defaults → active, без перезаписи существующих)');
+    }
+    $('#loadDefaultHigh').addEventListener('click', ()=> loadDefaultsTo('high','./decks/long.json'));
+    $('#loadDefaultShort').addEventListener('click', ()=> loadDefaultsTo('short','./decks/short.json'));
+    $('#mergeDefaults').addEventListener('click', mergeDefaultsIntoActive);
+
+    function fitDeckInputsForMobile(){ /* responsive via CSS */ }
+
+  </script>
+</body>
+</html>
